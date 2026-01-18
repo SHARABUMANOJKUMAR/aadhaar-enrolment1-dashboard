@@ -1,143 +1,179 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.linear_model import LinearRegression
-import numpy as np
 
-# ---------------- PAGE CONFIG ----------------
+# ================== PAGE CONFIG ==================
 st.set_page_config(
-    page_title="Aadhaar Enrolment Dashboard",
+    page_title="Aadhaar Enrolment Intelligence",
+    page_icon="🆔",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-st.title("📊 Aadhaar Enrolment Trends Dashboard")
-st.caption("Government Data Analytics | UIDAI Aadhaar Enrolment")
+# ================== PREMIUM UI STYLE ==================
+st.markdown("""
+<style>
+body {
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+}
+.block-container {
+    padding-top: 1.5rem;
+}
+.glass {
+    background: rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
+h1, h2, h3 {
+    color: #ffffff;
+}
+.metric-card {
+    background: linear-gradient(135deg,#1f4037,#99f2c8);
+    padding: 20px;
+    border-radius: 16px;
+    text-align: center;
+    color: black;
+    font-weight: 700;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# ---------------- DATA LOADING (CACHED) ----------------
+# ================== HEADER ==================
+st.markdown("<h1>🆔 Aadhaar Enrolment Intelligence Dashboard</h1>", unsafe_allow_html=True)
+st.caption("📊 Government-Scale Data Analytics | AI-Driven Forecasting | UIDAI")
+
+# ================== DATA LOADING ==================
 @st.cache_data(show_spinner=True)
 def load_data():
     df = pd.read_csv("api_data_aadhar_enrolment_500000_1000000.csv")
 
-    df['date'] = pd.to_datetime(df['date'], errors='coerce', dayfirst=True)
-    df = df.dropna(subset=['date'])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
+    df.dropna(subset=["date"], inplace=True)
     df.fillna(0, inplace=True)
 
-    # Auto-detect age columns
-    age_0_5 = next((c for c in df.columns if "0" in c and "5" in c), None)
-    age_5_17 = next((c for c in df.columns if "5" in c and "17" in c), None)
-    age_18_plus = next((c for c in df.columns if "18" in c), None)
-
-    if not all([age_0_5, age_5_17, age_18_plus]):
-        st.error("❌ Required age-wise columns not found")
-        st.stop()
-
     df.rename(columns={
-        age_0_5: "age_0_5",
-        age_5_17: "age_5_17",
-        age_18_plus: "age_18_plus"
+        "age_0_5": "Age 0–5",
+        "age_5_17": "Age 5–17",
+        "age_18_greater": "Age 18+"
     }, inplace=True)
 
-    df["total"] = df[["age_0_5", "age_5_17", "age_18_plus"]].sum(axis=1)
-
+    df["Total Enrolments"] = df[["Age 0–5", "Age 5–17", "Age 18+"]].sum(axis=1)
     return df
 
 df = load_data()
 
-# ---------------- SIDEBAR FILTER ----------------
-st.sidebar.header("🔎 Filters")
-selected_state = st.sidebar.selectbox("Select State", sorted(df["state"].unique()))
-filtered_df = df[df["state"] == selected_state]
+# ================== SIDEBAR ==================
+st.sidebar.markdown("## 🔍 Smart Filters")
+state = st.sidebar.selectbox("Select State", sorted(df["state"].unique()))
+filtered_df = df[df["state"] == state]
 
-# ---------------- KPIs ----------------
-st.subheader(f"📍 State Selected: {selected_state}")
+# ================== KPI METRICS ==================
+st.markdown("### 📌 Key Performance Indicators")
 
-c1, c2, c3 = st.columns(3)
-c1.metric("👥 Total Enrolments", f"{int(filtered_df['total'].sum()):,}")
-c2.metric("👶 Children (0–5)", f"{int(filtered_df['age_0_5'].sum()):,}")
-c3.metric("🧑 Adults (18+)", f"{int(filtered_df['age_18_plus'].sum()):,}")
+k1, k2, k3 = st.columns(3)
 
-st.divider()
+k1.markdown(
+    f"<div class='metric-card'>👥<br>Total Enrolments<br>{int(filtered_df['Total Enrolments'].sum()):,}</div>",
+    unsafe_allow_html=True
+)
+k2.markdown(
+    f"<div class='metric-card'>👶<br>Children (0–5)<br>{int(filtered_df['Age 0–5'].sum()):,}</div>",
+    unsafe_allow_html=True
+)
+k3.markdown(
+    f"<div class='metric-card'>🧑<br>Adults (18+)<br>{int(filtered_df['Age 18+'].sum()):,}</div>",
+    unsafe_allow_html=True
+)
 
-# ---------------- TIME SERIES ----------------
+# ================== TIME SERIES ==================
 monthly = (
     filtered_df
     .set_index("date")
     .resample("M")
-    .sum()["total"]
+    .sum()["Total Enrolments"]
 )
 
-st.subheader("📈 Monthly Aadhaar Enrolment Trend")
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.plot(monthly, label="Actual")
-ax.grid(alpha=0.3)
-ax.set_title("Monthly Enrolment Trend")
-st.pyplot(fig, use_container_width=True)
+st.markdown("### 📈 Aadhaar Enrolment Trend (Monthly)")
 
-# ---------------- 🔮 FORECASTING (ARIMA + ML FALLBACK) ----------------
-st.subheader("🔮 Aadhaar Enrolment Forecast (Next 6 Months)")
+trend_fig = px.line(
+    monthly,
+    x=monthly.index,
+    y=monthly.values,
+    labels={"x": "Month", "y": "Enrolments"},
+    markers=True,
+    template="plotly_dark"
+)
+trend_fig.update_traces(line=dict(width=3, color="#00f5d4"))
+st.plotly_chart(trend_fig, use_container_width=True)
 
-forecast_generated = False
+# ================== FORECASTING ==================
+st.markdown("### 🔮 AI-Based Enrolment Forecast (Next 6 Months)")
 
-# 🔹 Try ARIMA first
-if monthly.notna().sum() >= 6:
-    try:
-        arima_model = ARIMA(monthly, order=(1, 1, 1))
-        arima_fit = arima_model.fit()
-        forecast = arima_fit.forecast(steps=6)
-        forecast_generated = True
-        forecast_method = "ARIMA Time-Series Model"
-    except:
-        forecast_generated = False
+forecast_used = "ARIMA Time-Series Model"
 
-# 🔹 ML FALLBACK: Linear Regression Trend
-if not forecast_generated:
+try:
+    model = ARIMA(monthly, order=(1,1,1))
+    model_fit = model.fit()
+    forecast = model_fit.forecast(6)
+except:
+    forecast_used = "Machine Learning Trend Projection"
     y = monthly.values
-    X = np.arange(len(y)).reshape(-1, 1)
-
+    X = np.arange(len(y)).reshape(-1,1)
     lr = LinearRegression()
     lr.fit(X, y)
-
-    future_X = np.arange(len(y), len(y) + 6).reshape(-1, 1)
+    future_X = np.arange(len(y), len(y)+6).reshape(-1,1)
     forecast = lr.predict(future_X)
-
-    forecast_index = pd.date_range(
-        start=monthly.index[-1] + pd.offsets.MonthEnd(),
-        periods=6,
-        freq="M"
+    forecast = pd.Series(
+        forecast,
+        index=pd.date_range(monthly.index[-1], periods=6, freq="M")
     )
-    forecast = pd.Series(forecast, index=forecast_index)
-    forecast_method = "Machine Learning Trend Projection (Linear Regression)"
 
-# ---------------- FORECAST PLOT ----------------
-fig2, ax2 = plt.subplots(figsize=(10, 4))
-ax2.plot(monthly, label="Historical Data")
-ax2.plot(forecast, label="Forecast (Next 6 Months)", linestyle="--")
-ax2.legend()
-ax2.grid(alpha=0.3)
-ax2.set_title(f"Forecast Method Used: {forecast_method}")
-st.pyplot(fig2, use_container_width=True)
-
-# ---------------- AGE DISTRIBUTION ----------------
-st.subheader("👨‍👩‍👧 Age-wise Distribution")
-
-age_sum = filtered_df[["age_0_5", "age_5_17", "age_18_plus"]].sum()
-
-fig3, ax3 = plt.subplots(figsize=(5, 5))
-ax3.pie(
-    age_sum,
-    labels=["0–5 Years", "5–17 Years", "18+ Years"],
-    autopct="%1.1f%%",
-    startangle=90
+forecast_fig = go.Figure()
+forecast_fig.add_trace(go.Scatter(
+    x=monthly.index,
+    y=monthly.values,
+    mode="lines+markers",
+    name="Historical"
+))
+forecast_fig.add_trace(go.Scatter(
+    x=forecast.index,
+    y=forecast.values,
+    mode="lines+markers",
+    name="Forecast",
+    line=dict(dash="dash")
+))
+forecast_fig.update_layout(
+    template="plotly_dark",
+    title=f"Forecast Method: {forecast_used}"
 )
-st.pyplot(fig3)
 
-# ---------------- DATA PREVIEW ----------------
-st.subheader("📄 Data Preview")
-st.dataframe(filtered_df.head(100), use_container_width=True)
+st.plotly_chart(forecast_fig, use_container_width=True)
 
+# ================== AGE DISTRIBUTION ==================
+st.markdown("### 👨‍👩‍👧 Age-Wise Enrolment Distribution")
+
+age_sum = filtered_df[["Age 0–5", "Age 5–17", "Age 18+"]].sum()
+
+pie_fig = px.pie(
+    values=age_sum.values,
+    names=age_sum.index,
+    hole=0.45,
+    color_discrete_sequence=px.colors.sequential.Aggrnyl,
+    template="plotly_dark"
+)
+st.plotly_chart(pie_fig, use_container_width=True)
+
+# ================== DATA TABLE ==================
+st.markdown("### 📄 Data Snapshot")
+st.dataframe(filtered_df.head(200), use_container_width=True)
+
+# ================== FOOTER ==================
 st.caption(
-    "Forecasting uses ARIMA where data continuity exists; otherwise ML-based trend projection is applied. "
-    "This ensures responsible and continuous decision support for government planning."
+    "🔐 Enterprise-grade dashboard built using Streamlit, Plotly, ARIMA & ML. "
+    "Designed for policy planning, demographic insights & future forecasting."
 )
