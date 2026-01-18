@@ -4,3 +4,7 @@ numpy>=1.26.4
 matplotlib>=3.8.4
 statsmodels
 scikit-learn>=1.4.0
+plotly
+streamlit-option-menu
+streamlit-extras
+pydeck
