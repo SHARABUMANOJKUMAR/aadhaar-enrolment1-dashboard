@@ -53,9 +53,7 @@ st.caption("📊 Government-Scale Data Analytics | AI-Driven Forecasting | UIDAI
 # ================== DATA LOADING ==================
 @st.cache_data(show_spinner=True)
 def load_data():
-    df = pd.read_csv(
-        r"C:\Users\shara\OneDrive\Desktop\PROJECTS\UIADAI AADhar\AADhar CSV 2 Streamlit 2\aadhaar_clean2_states (1).csv"
-    )
+    df = pd.read_csv("aadhaar_clean2_states (1).csv")
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
     df.dropna(subset=["date"], inplace=True)
@@ -192,3 +190,4 @@ st.caption(
     "🔐 Enterprise-grade dashboard built using Streamlit, Plotly, ARIMA & ML. "
     "Designed for policy planning, demographic insights & future forecasting."
 )
+
