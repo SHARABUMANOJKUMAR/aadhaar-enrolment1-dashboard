@@ -1,8 +1,11 @@
+# ================== IMPORTS ==================
 import streamlit as st
 import pandas as pd
 import numpy as np
+
 import plotly.express as px
 import plotly.graph_objects as go
+
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.linear_model import LinearRegression
 
@@ -50,7 +53,9 @@ st.caption("📊 Government-Scale Data Analytics | AI-Driven Forecasting | UIDAI
 # ================== DATA LOADING ==================
 @st.cache_data(show_spinner=True)
 def load_data():
-    df = pd.read_csv("api_data_aadhar_enrolment_500000_1000000.csv")
+    df = pd.read_csv(
+        r"C:\Users\shara\OneDrive\Desktop\PROJECTS\UIADAI AADhar\AADhar CSV 2 Streamlit 2\aadhaar_clean2_states (1).csv"
+    )
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
     df.dropna(subset=["date"], inplace=True)
@@ -69,7 +74,12 @@ df = load_data()
 
 # ================== SIDEBAR ==================
 st.sidebar.markdown("## 🔍 Smart Filters")
-state = st.sidebar.selectbox("Select State", sorted(df["state"].unique()))
+state = st.sidebar.selectbox(
+    "Select State",
+    sorted(df["state"].unique()),
+    placeholder="Choose a state"
+)
+
 filtered_df = df[df["state"] == state]
 
 # ================== KPI METRICS ==================
@@ -101,7 +111,6 @@ monthly = (
 st.markdown("### 📈 Aadhaar Enrolment Trend (Monthly)")
 
 trend_fig = px.line(
-    monthly,
     x=monthly.index,
     y=monthly.values,
     labels={"x": "Month", "y": "Enrolments"},
@@ -117,29 +126,34 @@ st.markdown("### 🔮 AI-Based Enrolment Forecast (Next 6 Months)")
 forecast_used = "ARIMA Time-Series Model"
 
 try:
-    model = ARIMA(monthly, order=(1,1,1))
+    model = ARIMA(monthly, order=(1, 1, 1))
     model_fit = model.fit()
     forecast = model_fit.forecast(6)
-except:
+except Exception:
     forecast_used = "Machine Learning Trend Projection"
     y = monthly.values
-    X = np.arange(len(y)).reshape(-1,1)
+    X = np.arange(len(y)).reshape(-1, 1)
+
     lr = LinearRegression()
     lr.fit(X, y)
-    future_X = np.arange(len(y), len(y)+6).reshape(-1,1)
-    forecast = lr.predict(future_X)
+
+    future_X = np.arange(len(y), len(y) + 6).reshape(-1, 1)
+    preds = lr.predict(future_X)
+
     forecast = pd.Series(
-        forecast,
-        index=pd.date_range(monthly.index[-1], periods=6, freq="M")
+        preds,
+        index=pd.date_range(monthly.index[-1], periods=7, freq="M")[1:]
     )
 
 forecast_fig = go.Figure()
+
 forecast_fig.add_trace(go.Scatter(
     x=monthly.index,
     y=monthly.values,
     mode="lines+markers",
     name="Historical"
 ))
+
 forecast_fig.add_trace(go.Scatter(
     x=forecast.index,
     y=forecast.values,
@@ -147,6 +161,7 @@ forecast_fig.add_trace(go.Scatter(
     name="Forecast",
     line=dict(dash="dash")
 ))
+
 forecast_fig.update_layout(
     template="plotly_dark",
     title=f"Forecast Method: {forecast_used}"
